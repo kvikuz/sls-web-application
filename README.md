@@ -340,7 +340,7 @@ echo $MOVIES_API_GATEWAY_DOMAIN
 6. Проверим работу развернутого сервиса. Для этого сделаем http-запрос с помощью команды `curl`:
 
 ```bash
-curl ${MOVIES_API_GATEWAY_DOMAIN}/movies?limit=10
+curl "${MOVIES_API_GATEWAY_DOMAIN}/movies?limit=10"
 ```
 
 В ответе должен прийти пустой список `[]`, так как пока никаких данных в базе нет. Также вы можете загрузить
@@ -408,7 +408,7 @@ terraform apply -target=yandex_function_trigger.import_trigger
 ```bash
 yc sls function invoke --name import-function
 # {"statusCode":200,"body":"Imported 100 movies from TMDB","isBase64Encoded":false}
-curl ${MOVIES_API_GATEWAY_DOMAIN}/movies?limit=10
+curl "${MOVIES_API_GATEWAY_DOMAIN}/movies?limit=10"
 ```
 
 В ответе вы увидите массив json-объектов с фильмами, которые были загружены в базу данных.
@@ -447,7 +447,7 @@ terraform apply -target=yandex_function.authorizer
 terraform apply -target yandex_api_gateway.movies_api_gateway
 ```
 
-Теперь, если сделать http-вызов к сервису `curl ${MOVIES_API_GATEWAY_DOMAIN}/movies?limit=10`, то будет получен
+Теперь, если сделать http-вызов к сервису `curl "${MOVIES_API_GATEWAY_DOMAIN}/movies?limit=10"`, то будет получен
 ответ `{"message":"Unauthorized"}` с http-кодом 401.
 
 <div id="ratings"/>
