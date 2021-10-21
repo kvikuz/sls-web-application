@@ -1,0 +1,3 @@
+api_base_url: ${movies_api_gateway_domain}
+website_base_url: ${movies_website_gateway_domain}
+redirect_url: ${movies_website_gateway_domain}

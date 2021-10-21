@@ -1,0 +1,269 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Movies API
+x-yc-apigateway:
+  service_account_id: ${MOVIES_API_SA_ID}
+
+paths:
+  /{file+}:
+    options:
+      parameters:
+        - name: file
+          in: path
+          description: greedy param
+          required: false
+          schema:
+            type: string
+      description: Greedy options
+      operationId: greedyOptions
+      x-yc-apigateway-integration:
+        type: dummy
+        http_code: 200
+        content:
+          "*": ""
+        http_headers:
+          Allow: OPTIONS, GET, HEAD, POST
+          Access-Control-Allow-Origin: '*'
+          Access-Control-Allow-Headers: Content-Type, Authorization
+  /movies:
+    get:
+      description: Returns movies sorted by popularity
+      operationId: getMovies
+      #security:
+      #  - httpBearerAuth: [ ]
+      parameters:
+        - name: limit
+          in: query
+          description: maximum number of results to return
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: movies response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Movie'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-yc-apigateway-integration:
+        type: serverless_containers
+        container_id: ${MOVIES_API_CONTAINER_ID}
+    post:
+      description: Upsert movie
+      operationId: postMovie
+      #security:
+      #  - httpBearerAuth: [ ]
+      requestBody:
+        description: Movie to upsert
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Movie'
+      responses:
+        '200':
+          description: movie response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-yc-apigateway-integration:
+        type: serverless_containers
+        container_id: ${MOVIES_API_CONTAINER_ID}
+  /movies/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: ID of movie to delete
+        required: true
+        schema:
+          type: integer
+    get:
+      description: Returns movie based on the ID supplied
+      operationId: getMovieById
+      #security:
+      #  - httpBearerAuth: [ ]
+      responses:
+        '200':
+          description: movie response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movie'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-yc-apigateway-integration:
+        type: serverless_containers
+        container_id: ${MOVIES_API_CONTAINER_ID}
+    delete:
+      description: deletes a single movie based on the ID supplied
+      operationId: deleteMovieById
+      #security:
+      #  - httpBearerAuth: [ ]
+      responses:
+        '204':
+          description: movie deleted
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-yc-apigateway-integration:
+        type: serverless_containers
+        container_id: ${MOVIES_API_CONTAINER_ID}
+  /users/{userId}/votes:
+    post:
+      description: Post vote
+      operationId: postVote
+      #security:
+      #  - httpBearerAuth: [ ]
+      parameters:
+        - name: userId
+          in: path
+          description: ID of user
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Vote to post
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vote'
+      responses:
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-yc-apigateway-integration:
+        type: cloud_datastreams
+        action: PutRecord
+        stream_name: ${MOVIES_DATABASE_PATH}/votes-stream
+        partition_key: '{userId}'
+    get:
+      description: Get vote
+      operationId: getVote
+      #security:
+      #  - httpBearerAuth: [ ]
+      parameters:
+        - name: userId
+          in: path
+          description: ID of user
+          required: true
+          schema:
+            type: string
+        - name: movieId
+          in: query
+          description: ID of movie
+          required: true
+          schema:
+            type: number
+      responses:
+        '200':
+          description: vote response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vote'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-yc-apigateway-integration:
+        type: serverless_containers
+        container_id: ${MOVIES_API_CONTAINER_ID}
+components:
+  schemas:
+    Movie:
+      type: object
+      required:
+        - id
+        - original_title
+        - type
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+        original_title:
+          type: string
+        original_language:
+          type: string
+        release_date:
+          type: string
+        poster_path:
+          type: string
+        popularity:
+          type: number
+        video:
+          type: string
+        vote_count:
+          type: integer
+        vote_average:
+          type: number
+        rating:
+          type: number
+        genres:
+          type: string
+        backdrop_path:
+          type: string
+        adult:
+          type: string
+        overview:
+          type: string
+
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+    Vote:
+      type: object
+      required:
+        - movie_id
+        - user_id
+        - value
+      properties:
+        movie_id:
+          type: integer
+        user_id:
+          type: string
+        value:
+          type: integer
+  securitySchemes:
+    httpBearerAuth:
+      type: http
+      scheme: bearer
+#      x-yc-apigateway-authorizer:
+#        type: function
+#        function_id: ${AUTHORIZER_FUNCTION_ID}
+#        authorizer_result_ttl_in_seconds: 7200
