@@ -507,8 +507,8 @@ yc sls trigger create yds \
 	--batch-size 1024b \
 	--invoke-function-id ${VOTE_FUNCTION_ID} \
 	--invoke-function-service-account-id ${MOVIES_API_SA_ID} \
-	--retry-attempts 5 \
-	--retry-interval 10s
+	--retry-attempts 3 \
+	--retry-interval 1s
 ```
 
 4. Для проставления оценки в спецификацию добавлена операция `postVote` со специальной интеграцией c DataStreams.
