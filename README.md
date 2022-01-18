@@ -23,6 +23,10 @@
 
 Подробное описание того, как это сделать, приведено [здесь](ENVIRONMENT.md).
 
+## Архитектура приложения
+
+![img.png](architecture.png)
+
 ## Содержание практикума
 
 1. [Начало работы](#begin)
@@ -203,7 +207,7 @@ npm run build
 
 ### Разработка REST API
 
-Безусловно ключевым компонентом практически любого современного веб-сервиса является его REST API(учитываем, что пока
+Ключевым компонентом практически любого современного веб-сервиса является его REST API(учитываем, что пока
 еще подавляющее большинство приложений используют именно REST-подход при реализации своего API). При его разработке
 важно понимать, какие у вашего приложения будут сценарии использования и на каких клиентских платформах(
 веб/мобильные/тв и т.д.) они будут реализовываться. В нашем случае мы сделаем простой веб-интерфейс, в котором будет
@@ -319,7 +323,7 @@ yc sls container revisions deploy \
 serverless-контейнера мог конкурентно обрабатывать несколько запросов. Также обратите внимание, что мы через переменную
 окружения `DOCUMENT_API_ENDPOINT` передаем внутрь нашего приложения эндпоинт базы данных.
 
-5. Чтобы сервис полноценно заработал и был доступен снаружи, необходимо
+5. Чтобы сервис полноценно заработал и был доступен из интернета, необходимо
    развернуть [API Gateway](https://cloud.yandex.ru/services/api-gateway). Замените `${MOVIES_API_CONTAINER_ID}` на
    идентификатор созданного контейнера во всех интеграциях в спецификации [openapi.yaml](openapi/api.yaml). В
    файле [api-gateway.tf](deploy/api-gateway.tf) сконфигурирован API-шлюз, реализующий спецификацию. Для того чтобы
@@ -439,8 +443,12 @@ terraform apply -target=yandex_function.authorizer
 2. Раскомментируйте расширение `securitySchemes.httpBearerAuth.x-yc-apigateway-authorizer` в
    конце [спецификации](openapi/api.yaml) API-шлюза. Скопируйте полученный на предыдущем шаге идентификатор
    авторайзера `authorizer_function_id` и вставьте его вместо переменной `${AUTHORIZER_FUNCTION_ID}`
-   поле `securitySchemes.httpBearerAuth.x-yc-apigateway-authorizer.function_id`. Раскомментируйте security секцию во
-   всех операциях спецификации.
+   в поле `securitySchemes.httpBearerAuth.x-yc-apigateway-authorizer.function_id`. Также раскомментируйте security секцию во
+   всех операциях спецификации, где она есть:
+```yaml
+      security:
+        - httpBearerAuth: [ ]
+```
 3. Обновите спецификацию API-шлюза:
 
 ```bash
@@ -480,18 +488,28 @@ npm run package-vote && cd deploy
 terraform apply -target yandex_function.vote_function
 ```
 
-3. Создайте через веб-консоль триггер, который будет слушать поток и вызывать функцию проставления оценки. Для этого
-   необходимо зайти на страницу потока в вашем каталоге и нажать в правом верхнем углу на кнопку `Действия`, в меню
-   выбрать `Создать триггер в Cloud Functions`. В окне создания триггера заполните поля:
+В выводе команды в переменной `vote_function_id` будет напечатан идентификатор созданной функции. Сохраните его в переменной окружения:
 
-- Имя: vote-trigger
-- Тип: Data Streams
-- Функция: vote-function
-- Сервисный аккаунт: movies-api-sa
-- Интервал: 10 секунд
-- Количество попыток: 5
+```bash
+export VOTE_FUNCTION_ID=<vote_function_id>
+echo $VOTE_FUNCTION_ID
+```
 
-Далее нажмите `Создать триггер`.
+3. Создайте триггер, который будет слушать поток и вызывать функцию проставления оценки. Для этого
+   необходимо выполнить команду:
+
+```bash
+yc sls trigger create yds \
+	--name vote-trigger \
+	--database ${MOVIES_DATABASE_PATH} \
+	--stream votes-stream \
+	--stream-service-account-id ${MOVIES_API_SA_ID} \
+	--batch-size 1024b \
+	--invoke-function-id ${VOTE_FUNCTION_ID} \
+	--invoke-function-service-account-id ${MOVIES_API_SA_ID} \
+	--retry-attempts 5 \
+	--retry-interval 10s
+```
 
 4. Для проставления оценки в спецификацию добавлена операция `postVote` со специальной интеграцией c DataStreams.
    Подставьте значение переменной `${MOVIES_DATABASE_PATH}` в аттрибут `stream_name`
